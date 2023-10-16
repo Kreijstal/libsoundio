@@ -30,12 +30,15 @@
 #define E_NOTFOUND 0x80070490
 #endif //E_NOTFOUND
 
+#ifndef __mmdeviceapi_h__ // needed as __MMDeviceAPILib_LIBRARY_DEFINED__ is missing from older mingw versions
 #ifndef __MMDeviceAPILib_LIBRARY_DEFINED__
+#define __mmdeviceapi_h__
 #define __MMDeviceAPILib_LIBRARY_DEFINED__
 // And some GUID are never implemented (Ignoring the INITGUID define)
 static const CLSID CLSID_MMDeviceEnumerator = {
     0xbcde0395, 0xe52f, 0x467c, {0x8e, 0x3d, 0xc4, 0x57, 0x92, 0x91, 0x69, 0x2e}
 };
+#endif
 #endif
 #ifndef __IMMDeviceEnumerator_INTERFACE_DEFINED__
 #define __IMMDeviceEnumerator_INTERFACE_DEFINED__
