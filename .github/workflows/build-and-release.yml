@@ -83,26 +83,34 @@ jobs:
       shell: msys2 {0}
       run: cmake --build build --config Release
     
-    - name: Package build artifacts (non-Windows)
-      if: runner.os != 'Windows'
+    - name: Create install package (Linux)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
-        mkdir -p build/package
-        cmake --install build --prefix build/package
-        tar -czvf build/package.tar.gz build/package/*
-        
-    - name: Package build artifacts (Windows)
+        mkdir -p build/install
+        cmake --install build --prefix build/install
+        tar -czvf build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.tar.gz -C build/install .
+    
+    - name: Create install package (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        mkdir -p build/install
+        cmake --install build --prefix build/install
+        tar -czvf build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.tar.gz -C build/install .
+    
+    - name: Create install package (Windows)
       if: runner.os == 'Windows'
       shell: msys2 {0}
       run: |
-        mkdir -p build/package
-        cmake --install build --prefix build/package
-        7z a build/package.zip build/package/*
+        mkdir -p build/install
+        cmake --install build --prefix build/install
+        7z a build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.zip build/install/*
     
     - name: Cache build packages
       uses: actions/cache@v3
       with:
-        path: build/package.*
+        path: build/soundio-*.{tar.gz,zip}
         key: packages-${{ runner.os }}-${{ matrix.sys || 'native' }}-${{ github.sha }}
         restore-keys: |
           packages-${{ runner.os }}-${{ matrix.sys || 'native' }}-
@@ -119,7 +127,7 @@ jobs:
         uses: actions/cache@v3
         id: package-cache
         with:
-          path: build/package.*
+          path: build/soundio-*.{tar.gz,zip}
           key: packages-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-${{ github.sha }}
           restore-keys: |
             packages-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-
@@ -127,8 +135,7 @@ jobs:
       - name: Debug restored files
         run: |
           echo "Restored files:"
-          tree build || true
-          ls -lR build || true
+          ls -l build/soundio-*.{tar.gz,zip} || true
           
       - name: Determine release type
         id: release-type
