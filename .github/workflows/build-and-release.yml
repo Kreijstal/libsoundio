@@ -123,6 +123,12 @@ jobs:
           key: packages-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-${{ github.sha }}
           restore-keys: |
             packages-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-
+
+      - name: Debug restored files
+        run: |
+          echo "Restored files:"
+          tree build || true
+          ls -lR build || true
           
       - name: Determine release type
         id: release-type
