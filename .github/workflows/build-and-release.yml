@@ -132,10 +132,12 @@ jobs:
           restore-keys: |
             packages-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-
 
-      - name: Debug restored files
+      - name: Debug build directory
         run: |
-          echo "Restored files:"
-          ls -l build/soundio-*.{tar.gz,zip} || true
+          echo "Build directory contents:"
+          ls -l build || true
+          echo "Install directory contents:"
+          ls -l build/install || true
           
       - name: Determine release type
         id: release-type
