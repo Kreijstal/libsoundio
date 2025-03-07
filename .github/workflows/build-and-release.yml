@@ -116,15 +116,15 @@ jobs:
           echo "TAG=${BRANCH_NAME}-${SHORT_SHA}" >> $GITHUB_OUTPUT
           
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.release-type.outputs.TAG }}
           name: ${{ steps.release-type.outputs.TAG }}
           prerelease: true
           body: |
             Automated pre-release build
-            - OS: ${{ matrix.os }}
-            - System: ${{ matrix.sys || 'native' }}
           generate_release_notes: true
           files: |
-            artifacts/*/*
+            artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
