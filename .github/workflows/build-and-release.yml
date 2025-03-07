@@ -1,10 +1,16 @@
-name: Build and Pre-Release
+name: Build and Release
 
 on:
   push:
-    branches: ['*']
+    branches: 
+      - main
+      - release/*
   pull_request:
     branches: ['*']
+  
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   build:
@@ -90,21 +96,49 @@ jobs:
         path: build/package.*
         if-no-files-found: error
     
-  pre-release:
+  release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
     
     steps:
       - uses: actions/checkout@v4
       
-      - name: Create pre-release
-        uses: elgohr/Github-Release-Action@v5
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
         with:
-          title: ${{ github.ref_name }}-pre
-          tag: ${{ github.ref_name }}-pre
-          prerelease: true
-          files: |
-            artifacts/**/*
+          path: artifacts
+          
+      - name: Determine release type
+        id: release-type
+        run: |
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+            echo "RELEASE_TYPE=stable" >> $GITHUB_OUTPUT
+            echo "TAG=v$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
+          else
+            echo "RELEASE_TYPE=pre-release" >> $GITHUB_OUTPUT
+            echo "TAG=$(echo $GITHUB_REF | cut -d'/' -f3)-pre" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Create GitHub Release
+        uses: actions/create-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.release-type.outputs.TAG }}
+          release_name: ${{ steps.release-type.outputs.TAG }}
+          prerelease: ${{ steps.release-type.outputs.RELEASE_TYPE == 'pre-release' }}
+          body: |
+            Automated ${{ steps.release-type.outputs.RELEASE_TYPE }} build
+            - OS: ${{ matrix.os }}
+            - System: ${{ matrix.sys || 'native' }}
+          draft: false
+          generate_release_notes: true
+          
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v2
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: artifacts/${{ runner.os }}-${{ matrix.sys || 'build' }}-${{ github.sha }}/*
+          asset_name: ${{ runner.os }}-${{ matrix.sys || 'build' }}-${{ github.sha }}.zip
+          asset_content_type: application/zip
