@@ -2,10 +2,7 @@ name: Build and Release
 
 on:
   push:
-    branches: 
-      - main
-      - master
-      - release/*
+    branches: ['*']
   pull_request:
     branches: ['*']
   
@@ -100,7 +97,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/')
+    if: always()
     
     steps:
       - uses: actions/checkout@v4
@@ -113,13 +110,10 @@ jobs:
       - name: Determine release type
         id: release-type
         run: |
-          if [[ "$GITHUB_REF" == "refs/heads/main" || "$GITHUB_REF" == "refs/heads/master" ]]; then
-            echo "RELEASE_TYPE=stable" >> $GITHUB_OUTPUT
-            echo "TAG=v$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
-          else
-            echo "RELEASE_TYPE=pre-release" >> $GITHUB_OUTPUT
-            echo "TAG=$(echo $GITHUB_REF | cut -d'/' -f3)-pre" >> $GITHUB_OUTPUT
-          fi
+          BRANCH_NAME=$(echo $GITHUB_REF | cut -d'/' -f3)
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          echo "RELEASE_TYPE=pre-release" >> $GITHUB_OUTPUT
+          echo "TAG=${BRANCH_NAME}-${SHORT_SHA}" >> $GITHUB_OUTPUT
           
       - name: Create GitHub Release
         uses: actions/create-release@v2
