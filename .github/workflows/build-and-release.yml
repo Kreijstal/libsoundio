@@ -4,6 +4,7 @@ on:
   push:
     branches: 
       - main
+      - master
       - release/*
   pull_request:
     branches: ['*']
@@ -99,7 +100,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/')
     
     steps:
       - uses: actions/checkout@v4
@@ -112,7 +113,7 @@ jobs:
       - name: Determine release type
         id: release-type
         run: |
-          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+          if [[ "$GITHUB_REF" == "refs/heads/main" || "$GITHUB_REF" == "refs/heads/master" ]]; then
             echo "RELEASE_TYPE=stable" >> $GITHUB_OUTPUT
             echo "TAG=v$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
           else
