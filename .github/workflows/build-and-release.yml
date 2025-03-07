@@ -104,7 +104,7 @@ jobs:
       id: build-cache
       with:
         path: build
-        key: build-${{ runner.os }}-${{ matrix.sys || 'native' }}-${{ hashFiles('**/CMakeLists.txt', '**/src/*') }}
+        key: build-${{ runner.os }}-${{ matrix.sys || 'native' }}-${{ hashFiles('CMakeLists.txt') }}
         restore-keys: |
           build-${{ runner.os }}-${{ matrix.sys || 'native' }}-
     
