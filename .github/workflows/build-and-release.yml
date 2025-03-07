@@ -135,9 +135,9 @@ jobs:
       - name: Debug build directory
         run: |
           echo "Build directory contents:"
-          ls -l build || true
+          ls -l build
           echo "Install directory contents:"
-          ls -l build/install || true
+          ls -l build/install
           
       - name: Determine release type
         id: release-type
