@@ -107,13 +107,13 @@ jobs:
         cmake --install build --prefix build/install
         7z a build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.zip build/install/*
     
-    - name: Cache build packages
+    - name: Cache build artifacts
       uses: actions/cache@v3
       with:
-        path: build/soundio-*.{tar.gz,zip}
-        key: packages-${{ runner.os }}-${{ matrix.sys || 'native' }}-${{ github.sha }}
+        path: build
+        key: build-${{ runner.os }}-${{ matrix.sys || 'native' }}-${{ github.sha }}
         restore-keys: |
-          packages-${{ runner.os }}-${{ matrix.sys || 'native' }}-
+          build-${{ runner.os }}-${{ matrix.sys || 'native' }}-
     
   release:
     needs: build
@@ -123,21 +123,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Restore cached packages
+      - name: Restore build cache
         uses: actions/cache@v3
-        id: package-cache
+        id: build-cache
         with:
-          path: build/soundio-*.{tar.gz,zip}
-          key: packages-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-${{ github.sha }}
+          path: build
+          key: build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-${{ github.sha }}
           restore-keys: |
-            packages-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-
+            build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-
 
-      - name: Debug build directory
+      - name: Debug build artifacts
         run: |
-          echo "Build directory contents:"
-          ls -l build
-          echo "Install directory contents:"
-          ls -l build/install
+          echo "Build directory structure:"
+          tree build || echo "No build directory found"
+          echo ""
+          echo "Package files:"
+          find build -name 'soundio-*' -type f -exec ls -lh {} \; || echo "No package files found"
           
       - name: Determine release type
         id: release-type
