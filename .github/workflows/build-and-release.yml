@@ -107,7 +107,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: always()
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
     
     steps:
       - uses: actions/checkout@v4
@@ -116,7 +116,7 @@ jobs:
         uses: actions/cache@v3
         id: package-cache
         with:
-          path: artifacts
+          path: build/package.*
           key: packages-${{ matrix.os }}-${{ matrix.sys || 'native' }}-${{ github.sha }}
           restore-keys: |
             packages-${{ matrix.os }}-${{ matrix.sys || 'native' }}-
@@ -124,21 +124,28 @@ jobs:
       - name: Determine release type
         id: release-type
         run: |
-          BRANCH_NAME=$(echo $GITHUB_REF | cut -d'/' -f3)
-          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
-          echo "RELEASE_TYPE=pre-release" >> $GITHUB_OUTPUT
-          echo "TAG=${BRANCH_NAME}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG=${GITHUB_REF#refs/tags/}
+            RELEASE_TYPE=release
+          else
+            SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+            TAG=nightly-${SHORT_SHA}
+            RELEASE_TYPE=pre-release
+          fi
+          echo "RELEASE_TYPE=${RELEASE_TYPE}" >> $GITHUB_OUTPUT
+          echo "TAG=${TAG}" >> $GITHUB_OUTPUT
           
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.release-type.outputs.TAG }}
           name: ${{ steps.release-type.outputs.TAG }}
-          prerelease: true
+          prerelease: ${{ steps.release-type.outputs.RELEASE_TYPE == 'pre-release' }}
           body: |
-            Automated pre-release build
+            Automated ${{ steps.release-type.outputs.RELEASE_TYPE }} build
+            Built from: ${{ github.sha }}
           generate_release_notes: true
           files: |
-            artifacts/**/*
+            build/package.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
