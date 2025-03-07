@@ -116,22 +116,18 @@ jobs:
           echo "TAG=${BRANCH_NAME}-${SHORT_SHA}" >> $GITHUB_OUTPUT
           
       - name: Create GitHub Release
-        uses: actions/create-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release-type.outputs.TAG }}
-          release_name: ${{ steps.release-type.outputs.TAG }}
-          prerelease: ${{ steps.release-type.outputs.RELEASE_TYPE == 'pre-release' }}
+          name: ${{ steps.release-type.outputs.TAG }}
+          prerelease: true
           body: |
-            Automated ${{ steps.release-type.outputs.RELEASE_TYPE }} build
+            Automated pre-release build
             - OS: ${{ matrix.os }}
             - System: ${{ matrix.sys || 'native' }}
-          draft: false
           generate_release_notes: true
-          
-      - name: Upload Release Assets
-        uses: actions/upload-release-asset@v2
+          files: |
+            artifacts/**/*
         with:
           upload_url: ${{ steps.create-release.outputs.upload_url }}
           asset_path: artifacts/${{ runner.os }}-${{ matrix.sys || 'build' }}-${{ github.sha }}/*
