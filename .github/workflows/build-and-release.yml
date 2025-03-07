@@ -1,0 +1,110 @@
+name: Build and Pre-Release
+
+on:
+  push:
+    branches: ['*']
+  pull_request:
+    branches: ['*']
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            sys: MINGW64
+          - os: windows-latest
+            sys: UCRT64
+          - os: windows-latest
+            sys: CLANG64
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install CMake (Ubuntu)
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y cmake build-essential
+
+    - name: Install CMake (macOS)
+      if: runner.os == 'macOS'
+      run: brew install cmake
+
+    - name: Setup MSYS2 (Windows)
+      if: runner.os == 'Windows'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{ matrix.sys }}
+        update: true
+        install: >-
+          base-devel
+          git
+          cmake
+        pacboy: >-
+          cmake:p
+          make:p
+          cc:p
+          7zip:p
+    
+    - name: Configure CMake (non-Windows)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      
+    - name: Configure CMake (Windows)
+      if: runner.os == 'Windows'
+      shell: msys2 {0}
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build (non-Windows)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: cmake --build build --config Release
+      
+    - name: Build (Windows)
+      if: runner.os == 'Windows'
+      shell: msys2 {0}
+      run: cmake --build build --config Release
+    
+    - name: Package build artifacts (non-Windows)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        mkdir -p build/package
+        cmake --install build --prefix build/package
+        tar -czvf build/package.tar.gz build/package/*
+        
+    - name: Package build artifacts (Windows)
+      if: runner.os == 'Windows'
+      shell: msys2 {0}
+      run: |
+        mkdir -p build/package
+        cmake --install build --prefix build/package
+        7z a build/package.zip build/package/*
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ runner.os }}-${{ matrix.sys || 'build' }}-${{ github.sha }}
+        path: build/package.*
+        if-no-files-found: error
+    
+  pre-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create pre-release
+        uses: elgohr/Github-Release-Action@v5
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          title: ${{ github.ref_name }}-pre
+          tag: ${{ github.ref_name }}-pre
+          prerelease: true
+          files: |
+            artifacts/**/*
