@@ -96,13 +96,13 @@ jobs:
         cmake --install build --prefix build/package
         7z a build/package.zip build/package/*
     
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+    - name: Save release cache
+      uses: actions/cache@v3
       with:
-        name: package-${{ runner.os }}-${{ matrix.sys || 'native' }}
         path: build/package.*
-        if-no-files-found: error
-        retention-days: 1
+        key: release-${{ runner.os }}-${{ matrix.sys || 'native' }}-${{ github.sha }}
+        restore-keys: |
+          release-${{ runner.os }}-${{ matrix.sys || 'native' }}-
     
   release:
     needs: build
@@ -112,12 +112,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+      - name: Restore release cache
+        uses: actions/cache@v3
+        id: release-cache
         with:
           path: artifacts
-          pattern: package-*
-          merge-multiple: true
+          key: release-${{ matrix.os }}-${{ matrix.sys || 'native' }}-${{ github.sha }}
+          restore-keys: |
+            release-${{ matrix.os }}-${{ matrix.sys || 'native' }}-
           
       - name: Determine release type
         id: release-type
