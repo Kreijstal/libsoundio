@@ -87,12 +87,13 @@ jobs:
         cmake --install build --prefix build/package
         7z a build/package.zip build/package/*
     
-    - name: Upload artifact
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ runner.os }}-${{ matrix.sys || 'build' }}-${{ github.sha }}-${{ matrix.config || 'default' }}
+        name: package-${{ runner.os }}-${{ matrix.sys || 'native' }}
         path: build/package.*
         if-no-files-found: error
+        retention-days: 1
     
   release:
     needs: build
@@ -102,10 +103,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Download build artifacts
+      - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          pattern: package-*
+          merge-multiple: true
           
       - name: Determine release type
         id: release-type
