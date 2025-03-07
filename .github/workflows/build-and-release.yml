@@ -51,23 +51,32 @@ jobs:
           cc:p
           7zip:p
     
+    - name: Restore build cache
+      uses: actions/cache@v3
+      id: cache
+      with:
+        path: build
+        key: ${{ runner.os }}-${{ matrix.sys || 'native' }}-${{ hashFiles('**/CMakeLists.txt', '**/src/*') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.sys || 'native' }}-
+
     - name: Configure CMake (non-Windows)
-      if: runner.os != 'Windows'
+      if: runner.os != 'Windows' && steps.cache.outputs.cache-hit != 'true'
       shell: bash
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
       
     - name: Configure CMake (Windows)
-      if: runner.os == 'Windows'
+      if: runner.os == 'Windows' && steps.cache.outputs.cache-hit != 'true'
       shell: msys2 {0}
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
     
     - name: Build (non-Windows)
-      if: runner.os != 'Windows'
+      if: runner.os != 'Windows' && steps.cache.outputs.cache-hit != 'true'
       shell: bash
       run: cmake --build build --config Release
       
     - name: Build (Windows)
-      if: runner.os == 'Windows'
+      if: runner.os == 'Windows' && steps.cache.outputs.cache-hit != 'true'
       shell: msys2 {0}
       run: cmake --build build --config Release
     
