@@ -122,7 +122,7 @@ jobs:
         id: build-cache
         with:
           path: build
-          key: build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-${{ hashFiles('**/CMakeLists.txt', '**/src/*') }}
+          key: build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-${{ hashFiles('CMakeLists.txt') }}
           restore-keys: |
             build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-
 
@@ -159,6 +159,6 @@ jobs:
             Built from: ${{ github.sha }}
           generate_release_notes: true
           files: |
-            build/package.*
+            build/soundio-*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
