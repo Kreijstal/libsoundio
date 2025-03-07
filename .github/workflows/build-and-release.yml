@@ -104,9 +104,9 @@ jobs:
       id: build-cache
       with:
         path: build
-        key: build-${{ runner.os }}-${{ matrix.sys || 'native' }}-${{ hashFiles('CMakeLists.txt') }}
+        key: build-${{ runner.os }}-${{ matrix.sys || 'native' }}
         restore-keys: |
-          build-${{ runner.os }}-${{ matrix.sys || 'native' }}-
+          build-${{ runner.os }}-
     
     
   release:
@@ -122,9 +122,9 @@ jobs:
         id: build-cache
         with:
           path: build
-          key: build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-${{ hashFiles('CMakeLists.txt') }}
+          key: build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}
           restore-keys: |
-            build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}-
+            build-${{ needs.build.outputs.os }}-
 
       - name: Debug build artifacts
         run: |
