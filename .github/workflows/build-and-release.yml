@@ -1,0 +1,178 @@
+name: Build and Publish Latest Pre-release
+
+on:
+  push:
+    branches: ['*']
+  pull_request:
+    branches: ['*']
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    outputs:
+      os: ${{ matrix.os }}
+      sys: ${{ matrix.sys || 'native' }}
+      artifact_name: build-output-${{ matrix.os }}-${{ matrix.sys || 'native' }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            sys: MINGW64
+          - os: windows-latest
+            sys: UCRT64
+          - os: windows-latest
+            sys: CLANG64
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install CMake (Ubuntu)
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y cmake build-essential
+
+    - name: Setup MSYS2 (Windows)
+      if: runner.os == 'Windows'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{ matrix.sys }}
+        update: true
+        install: >-
+          base-devel
+          git
+        pacboy: >-
+          cmake:p
+          make:p
+          cc:p
+          7zip:p
+
+    - name: Restore build cache
+      uses: actions/cache@v4
+      id: build-cache
+      with:
+        path: build
+        key: build-${{ runner.os }}-${{ matrix.sys || 'native' }}
+        restore-keys: |
+          build-${{ runner.os }}-${{ matrix.sys || 'native' }}
+
+    - name: Configure CMake (non-Windows)
+      if: runner.os != 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+    - name: Configure CMake (Windows)
+      if: runner.os == 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
+      shell: msys2 {0}
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build (non-Windows)
+      if: runner.os != 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: cmake --build build --config Release
+
+    - name: Build (Windows)
+      if: runner.os == 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
+      shell: msys2 {0}
+      run: cmake --build build --config Release
+
+    - name: Create install package (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        mkdir -p build/install
+        cmake --install build --prefix build/install
+        tar -czvf build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.tar.gz -C build/install .
+
+    - name: Create install package (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        mkdir -p build/install
+        cmake --install build --prefix build/install
+        tar -czvf build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.tar.gz -C build/install .
+
+    - name: Create install package (Windows)
+      if: runner.os == 'Windows'
+      shell: msys2 {0}
+      run: |
+        mkdir -p build/install
+        cmake --install build --prefix build/install
+        tar -czvf build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.tar.gz -C build/install .
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-output-${{ matrix.os }}-${{ matrix.sys || 'native' }}
+        path: build/*.tar.gz
+        retention-days: 7
+        overwrite: true
+        compression-level: 0
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'  # Only run on push, not PRs
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for tag checking
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          pattern: build-output-*
+          merge-multiple: true
+
+      - name: Debug downloaded artifacts
+        shell: bash
+        run: |
+          echo "Downloaded files:"
+          find artifacts -type f -exec ls -lh {} \; || echo "No files found"
+          echo ""
+          echo "Artifacts directory size:"
+          du -sh artifacts || echo "No artifacts directory found"
+
+      - name: Delete existing pre-release if it exists
+        run: |
+          # Check if the tag exists
+          TAG_NAME="nightly-latest"
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag $TAG_NAME exists, deleting associated release..."
+            # Get the release ID for the tag
+            RELEASE_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG_NAME" | jq -r '.id')
+            if [ "$RELEASE_ID" != "null" ]; then
+              # Delete the release
+              curl -s -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/vnd.github.v3+json" \
+                "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID"
+              echo "Deleted release with ID $RELEASE_ID"
+            fi
+            # Delete the tag
+            git push origin :refs/tags/$TAG_NAME
+            echo "Deleted tag $TAG_NAME"
+          else
+            echo "No existing tag $TAG_NAME found, proceeding with new release."
+          fi
+
+      - name: Create or update latest pre-release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: nightly-latest
+          name: Nightly Latest Pre-release
+          prerelease: true
+          body: |
+            Latest pre-release build from commit ${{ github.sha }} on branch ${{ github.ref_name }}.
+            Updated on: ${{ github.event.head_commit.timestamp }}
+          files: artifacts/soundio-*.tar.gz
+          draft: false
+          overwrite: true  # Overwrite existing release if it exists (not always reliable, hence the delete step)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
