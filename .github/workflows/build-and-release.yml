@@ -53,7 +53,9 @@ jobs:
       run: |
         echo "Cache key: build-${{ runner.os }}-${{ matrix.sys || 'native' }}"
         echo "Restore keys:"
+        echo "build-${{ runner.os }}-${{ matrix.sys || 'native' }}"
         echo "build-${{ runner.os }}-"
+            
 
     - name: Restore build cache
       uses: actions/cache@v4
@@ -62,7 +64,8 @@ jobs:
         path: build
         key: build-${{ runner.os }}-${{ matrix.sys || 'native' }}
         restore-keys: |
-          build-${{ runner.os }}-
+          build-${{ runner.os }}-${{ matrix.sys || 'native' }}
+          build-${{ runner.os }}-          
 
     - name: Configure CMake (non-Windows)
       if: runner.os != 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
@@ -99,6 +102,8 @@ jobs:
         mkdir -p build/install
         cmake --install build --prefix build/install
         7z a build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.zip build/install/*
+
+
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
