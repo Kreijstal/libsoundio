@@ -123,7 +123,12 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-output-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}
+          name: |
+            build-output-ubuntu-latest-native
+            build-output-macos-latest-native
+            build-output-windows-latest-MINGW64
+            build-output-windows-latest-UCRT64
+            build-output-windows-latest-CLANG64
           path: build/
 
       - name: Debug restored cache (release job)
