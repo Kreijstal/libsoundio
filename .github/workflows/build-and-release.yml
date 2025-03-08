@@ -120,13 +120,13 @@ jobs:
 
     - name: Debug cached files (build job - Windows)
       if: runner.os == 'Windows'
-      shell: pwsh
+      shell: msys2 {0}
       run: |
-        Write-Output "Cached files:"
-        Get-ChildItem -Recurse -File build | Format-Table FullName,Length -AutoSize
-        Write-Output ""
-        Write-Output "Cache size:"
-        (Get-ChildItem -Recurse -File build | Measure-Object -Property Length -Sum).Sum / 1MB
+        echo "Cached files:"
+        find build -type f -exec ls -lh {} \; || echo "No files found"
+        echo ""
+        echo "Cache size:"
+        du -sh build || echo "No cache directory found"
   release:
     needs: build
     runs-on: ubuntu-latest
