@@ -108,7 +108,13 @@ jobs:
         cmake --install build --prefix build/install
         7z a build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.zip build/install/*
 
-    
+    - name: Debug cached files (build job)
+      run: |
+        echo "Cached files:"
+        find build -type f -exec ls -lh {} \; || echo "No files found"
+        echo ""
+        echo "Cache size:"
+        du -sh build || echo "No cache directory found"
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -125,6 +131,16 @@ jobs:
           key: build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}
           restore-keys: |
             build-${{ needs.build.outputs.os }}-
+
+      - name: Debug restored cache (release job)
+        run: |
+          echo "Restored files:"
+          find build -type f -exec ls -lh {} \; || echo "No files found"
+          echo ""
+          echo "Restored cache size:"
+          du -sh build || echo "No cache directory found"
+          echo ""
+          echo "Cache hit: ${{ steps.build-cache.outputs.cache-hit }}"
 
       - name: Debug build artifacts
         run: |
