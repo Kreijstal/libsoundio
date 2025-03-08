@@ -65,6 +65,12 @@ jobs:
     #       7zip:p
     
 
+    - name: Debug cache key
+      run: |
+        echo "Cache key: build-${{ runner.os }}-${{ matrix.sys || 'native' }}"
+        echo "Restore keys:"
+        echo "build-${{ runner.os }}-"
+
     - name: Restore build cache
       uses: actions/cache@v4
       id: build-cache
@@ -73,6 +79,9 @@ jobs:
         key: build-${{ runner.os }}-${{ matrix.sys || 'native' }}
         restore-keys: |
           build-${{ runner.os }}-
+
+    - name: Create build directory
+      run: mkdir -p build
 
     - name: Configure CMake (non-Windows)
       if: runner.os != 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
@@ -145,6 +154,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Debug cache key (release)
+        run: |
+          echo "Cache key: build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}"
+          echo "Restore keys:"
+          echo "build-${{ needs.build.outputs.os }}-"
+
       - name: Restore build cache
         uses: actions/cache@v4
         id: build-cache
@@ -153,6 +168,9 @@ jobs:
           key: build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}
           restore-keys: |
             build-${{ needs.build.outputs.os }}-
+
+      - name: Create build directory
+        run: mkdir -p build
 
       - name: Debug restored cache (release job)
         shell: bash
