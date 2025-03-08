@@ -65,9 +65,6 @@ jobs:
         restore-keys: |
           build-${{ runner.os }}-
 
-    - name: Create build directory
-      run: mkdir -p build
-
     - name: Configure CMake (non-Windows)
       if: runner.os != 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
       shell: bash
