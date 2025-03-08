@@ -111,6 +111,8 @@ jobs:
         name: build-output-${{ matrix.os }}-${{ matrix.sys || 'native' }}
         path: build/
         retention-days: 7
+        overwrite: true
+        compression-level: 0
 
   release:
     needs: build
@@ -123,13 +125,10 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: |
-            build-output-ubuntu-latest-native
-            build-output-macos-latest-native
-            build-output-windows-latest-MINGW64
-            build-output-windows-latest-UCRT64
-            build-output-windows-latest-CLANG64
+          name: build-output-*
           path: build/
+          pattern: build-output-*
+          merge-multiple: true
 
       - name: Debug restored cache (release job)
         shell: bash
