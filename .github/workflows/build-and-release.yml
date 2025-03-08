@@ -16,6 +16,7 @@ jobs:
     outputs:
       os: ${{ matrix.os }}
       sys: ${{ matrix.sys || 'native' }}
+      artifact_name: build-output-${{ matrix.os }}-${{ matrix.sys || 'native' }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -122,7 +123,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-output-${{ matrix.os }}-${{ matrix.sys || 'native' }}
+          name: build-output-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}
           path: build/
 
       - name: Debug restored cache (release job)
