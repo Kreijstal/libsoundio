@@ -108,13 +108,25 @@ jobs:
         cmake --install build --prefix build/install
         7z a build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.zip build/install/*
 
-    - name: Debug cached files (build job)
+    - name: Debug cached files (build job - Linux/macOS)
+      if: runner.os != 'Windows'
+      shell: bash
       run: |
         echo "Cached files:"
         find build -type f -exec ls -lh {} \; || echo "No files found"
         echo ""
         echo "Cache size:"
         du -sh build || echo "No cache directory found"
+
+    - name: Debug cached files (build job - Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Write-Output "Cached files:"
+        Get-ChildItem -Recurse -File build | Format-Table FullName,Length -AutoSize
+        Write-Output ""
+        Write-Output "Cache size:"
+        (Get-ChildItem -Recurse -File build | Measure-Object -Property Length -Sum).Sum / 1MB
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -133,6 +145,7 @@ jobs:
             build-${{ needs.build.outputs.os }}-
 
       - name: Debug restored cache (release job)
+        shell: bash
         run: |
           echo "Restored files:"
           find build -type f -exec ls -lh {} \; || echo "No files found"
