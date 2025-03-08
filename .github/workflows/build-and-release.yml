@@ -1,18 +1,11 @@
 name: Build and Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      enable_all_os:
-        description: 'Enable all OS builds (ubuntu, macos, windows)'
-        required: false 
-        default: 'false'
-        type: boolean
   push:
     branches: ['*']
   pull_request:
     branches: ['*']
-  
+
 permissions:
   contents: write
   packages: write
@@ -25,45 +18,37 @@ jobs:
       sys: ${{ matrix.sys || 'native' }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        # Uncomment below to enable all OS builds
-        # ${{ if inputs.enable_all_os == 'true' }}:
-        #   os: [ubuntu-latest, macos-latest]
-        #   include:
-        #     - os: windows-latest
-        #       sys: MINGW64
-        #     - os: windows-latest
-        #       sys: UCRT64
-        #     - os: windows-latest
-        #       sys: CLANG64
-    
+        os: [ubuntu-latest, windows-latest]  # Added windows-latest
+        include:
+          - os: windows-latest
+            sys: MINGW64
+          - os: windows-latest
+            sys: UCRT64
+          - os: windows-latest
+            sys: CLANG64
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Install CMake (Ubuntu)
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get install -y cmake build-essential
 
-    # - name: Install CMake (macOS)
-    #   if: runner.os == 'macOS'
-    #   run: brew install cmake
-
-    # - name: Setup MSYS2 (Windows)
-    #   if: runner.os == 'Windows'
-    #   uses: msys2/setup-msys2@v2
-    #   with:
-    #     msystem: ${{ matrix.sys }}
-    #     update: true
-    #     install: >-
-    #       base-devel
-    #       git
-    #       cmake
-    #     pacboy: >-
-    #       cmake:p
-    #       make:p
-    #       cc:p
-    #       7zip:p
-    
+    - name: Setup MSYS2 (Windows)
+      if: runner.os == 'Windows'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{ matrix.sys }}
+        update: true
+        install: >-
+          base-devel
+          git
+          cmake
+        pacboy: >-
+          cmake:p
+          make:p
+          cc:p
+          7zip:p
 
     - name: Debug cache key
       run: |
@@ -87,22 +72,22 @@ jobs:
       if: runner.os != 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
       shell: bash
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-      
-    # - name: Configure CMake (Windows)
-    #   if: runner.os == 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
-    #   shell: msys2 {0}
-    #   run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-    
+
+    - name: Configure CMake (Windows)
+      if: runner.os == 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
+      shell: msys2 {0}
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
     - name: Build (non-Windows)
       if: runner.os != 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
       shell: bash
       run: cmake --build build --config Release
-      
+
     - name: Build (Windows)
       if: runner.os == 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
       shell: msys2 {0}
       run: cmake --build build --config Release
-    
+
     - name: Create install package (Linux)
       if: runner.os == 'Linux'
       shell: bash
@@ -110,67 +95,35 @@ jobs:
         mkdir -p build/install
         cmake --install build --prefix build/install
         tar -czvf build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.tar.gz -C build/install .
-    
-    # - name: Create install package (macOS)
-    #   if: runner.os == 'macOS'
-    #   shell: bash
-    #   run: |
-    #     mkdir -p build/install
-    #     cmake --install build --prefix build/install
-    #     tar -czvf build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.tar.gz -C build/install .
-    
-    # - name: Create install package (Windows)
-    #   if: runner.os == 'Windows'
-    #   shell: msys2 {0}
-    #   run: |
-    #     mkdir -p build/install
-    #     cmake --install build --prefix build/install
-    #     7z a build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.zip build/install/*
 
-    - name: Debug cached files (build job - Linux/macOS)
-      if: runner.os != 'Windows'
-      shell: bash
-      run: |
-        echo "Cached files:"
-        find build -type f -exec ls -lh {} \; || echo "No files found"
-        echo ""
-        echo "Cache size:"
-        du -sh build || echo "No cache directory found"
-
-    - name: Debug cached files (build job - Windows)
+    - name: Create install package (Windows)
       if: runner.os == 'Windows'
       shell: msys2 {0}
       run: |
-        echo "Cached files:"
-        find build -type f -exec ls -lh {} \; || echo "No files found"
-        echo ""
-        echo "Cache size:"
-        du -sh build || echo "No cache directory found"
+        mkdir -p build/install
+        cmake --install build --prefix build/install
+        7z a build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.zip build/install/*
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-output-${{ runner.os }}-${{ matrix.sys || 'native' }}
+        path: build/
+        retention-days: 7
+
   release:
     needs: build
     runs-on: ubuntu-latest
     if: always()
-    
+
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Debug cache key (release)
-        run: |
-          echo "Cache key: build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}"
-          echo "Restore keys:"
-          echo "build-${{ needs.build.outputs.os }}-"
 
-      - name: Restore build cache
-        uses: actions/cache@v4
-        id: build-cache
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
         with:
-          path: build
-          key: build-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}
-          restore-keys: |
-            build-${{ needs.build.outputs.os }}-
-
-      - name: Create build directory
-        run: mkdir -p build
+          name: build-output-${{ needs.build.outputs.os }}-${{ needs.build.outputs.sys || 'native' }}
+          path: build/
 
       - name: Debug restored cache (release job)
         shell: bash
@@ -190,7 +143,7 @@ jobs:
           echo ""
           echo "Package files:"
           find build -name 'soundio-*' -type f -exec ls -lh {} \; || echo "No package files found"
-          
+
       - name: Determine release type
         id: release-type
         run: |
@@ -204,7 +157,7 @@ jobs:
           fi
           echo "RELEASE_TYPE=${RELEASE_TYPE}" >> $GITHUB_OUTPUT
           echo "TAG=${TAG}" >> $GITHUB_OUTPUT
-          
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
