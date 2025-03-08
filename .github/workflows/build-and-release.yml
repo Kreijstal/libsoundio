@@ -1,6 +1,13 @@
 name: Build and Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      enable_all_os:
+        description: 'Enable all OS builds (ubuntu, macos, windows)'
+        required: false 
+        default: 'false'
+        type: boolean
   push:
     branches: ['*']
   pull_request:
@@ -18,14 +25,17 @@ jobs:
       sys: ${{ matrix.sys || 'native' }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        include:
-          - os: windows-latest
-            sys: MINGW64
-          - os: windows-latest
-            sys: UCRT64
-          - os: windows-latest
-            sys: CLANG64
+        os: [ubuntu-latest]
+        # Uncomment below to enable all OS builds
+        # ${{ if inputs.enable_all_os == 'true' }}:
+        #   os: [ubuntu-latest, macos-latest]
+        #   include:
+        #     - os: windows-latest
+        #       sys: MINGW64
+        #     - os: windows-latest
+        #       sys: UCRT64
+        #     - os: windows-latest
+        #       sys: CLANG64
     
     steps:
     - uses: actions/checkout@v4
@@ -34,25 +44,25 @@ jobs:
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get install -y cmake build-essential
 
-    - name: Install CMake (macOS)
-      if: runner.os == 'macOS'
-      run: brew install cmake
+    # - name: Install CMake (macOS)
+    #   if: runner.os == 'macOS'
+    #   run: brew install cmake
 
-    - name: Setup MSYS2 (Windows)
-      if: runner.os == 'Windows'
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: ${{ matrix.sys }}
-        update: true
-        install: >-
-          base-devel
-          git
-          cmake
-        pacboy: >-
-          cmake:p
-          make:p
-          cc:p
-          7zip:p
+    # - name: Setup MSYS2 (Windows)
+    #   if: runner.os == 'Windows'
+    #   uses: msys2/setup-msys2@v2
+    #   with:
+    #     msystem: ${{ matrix.sys }}
+    #     update: true
+    #     install: >-
+    #       base-devel
+    #       git
+    #       cmake
+    #     pacboy: >-
+    #       cmake:p
+    #       make:p
+    #       cc:p
+    #       7zip:p
     
 
     - name: Restore build cache
@@ -92,21 +102,21 @@ jobs:
         cmake --install build --prefix build/install
         tar -czvf build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.tar.gz -C build/install .
     
-    - name: Create install package (macOS)
-      if: runner.os == 'macOS'
-      shell: bash
-      run: |
-        mkdir -p build/install
-        cmake --install build --prefix build/install
-        tar -czvf build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.tar.gz -C build/install .
+    # - name: Create install package (macOS)
+    #   if: runner.os == 'macOS'
+    #   shell: bash
+    #   run: |
+    #     mkdir -p build/install
+    #     cmake --install build --prefix build/install
+    #     tar -czvf build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.tar.gz -C build/install .
     
-    - name: Create install package (Windows)
-      if: runner.os == 'Windows'
-      shell: msys2 {0}
-      run: |
-        mkdir -p build/install
-        cmake --install build --prefix build/install
-        7z a build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.zip build/install/*
+    # - name: Create install package (Windows)
+    #   if: runner.os == 'Windows'
+    #   shell: msys2 {0}
+    #   run: |
+    #     mkdir -p build/install
+    #     cmake --install build --prefix build/install
+    #     7z a build/soundio-${{ runner.os }}-${{ matrix.sys || 'native' }}.zip build/install/*
 
     - name: Debug cached files (build job - Linux/macOS)
       if: runner.os != 'Windows'
