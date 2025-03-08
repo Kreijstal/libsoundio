@@ -65,7 +65,6 @@ jobs:
         key: build-${{ runner.os }}-${{ matrix.sys || 'native' }}
         restore-keys: |
           build-${{ runner.os }}-${{ matrix.sys || 'native' }}
-          build-${{ runner.os }}-          
 
     - name: Configure CMake (non-Windows)
       if: runner.os != 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
