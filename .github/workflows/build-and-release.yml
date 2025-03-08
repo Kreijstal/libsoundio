@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build and Publish Latest Pre-release
 
 on:
   push:
@@ -49,13 +49,6 @@ jobs:
           make:p
           cc:p
           7zip:p
-
-    - name: Debug cache key
-      run: |
-        echo "Cache key: build-${{ runner.os }}-${{ matrix.sys || 'native' }}"
-        echo "Restore keys:"
-        echo "build-${{ runner.os }}-${{ matrix.sys || 'native' }}"
-        echo "build-${{ runner.os }}-"
 
     - name: Restore build cache
       uses: actions/cache@v4
@@ -122,10 +115,12 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: always()
+    if: github.event_name == 'push'  # Only run on push, not PRs
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for tag checking
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -143,30 +138,41 @@ jobs:
           echo "Artifacts directory size:"
           du -sh artifacts || echo "No artifacts directory found"
 
-      - name: Determine release type
-        id: release-type
+      - name: Delete existing pre-release if it exists
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            TAG=${GITHUB_REF#refs/tags/}
-            RELEASE_TYPE=release
+          # Check if the tag exists
+          TAG_NAME="nightly-latest"
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag $TAG_NAME exists, deleting associated release..."
+            # Get the release ID for the tag
+            RELEASE_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG_NAME" | jq -r '.id')
+            if [ "$RELEASE_ID" != "null" ]; then
+              # Delete the release
+              curl -s -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/vnd.github.v3+json" \
+                "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID"
+              echo "Deleted release with ID $RELEASE_ID"
+            fi
+            # Delete the tag
+            git push origin :refs/tags/$TAG_NAME
+            echo "Deleted tag $TAG_NAME"
           else
-            SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
-            TAG=nightly-${SHORT_SHA}
-            RELEASE_TYPE=pre-release
+            echo "No existing tag $TAG_NAME found, proceeding with new release."
           fi
-          echo "RELEASE_TYPE=${RELEASE_TYPE}" >> $GITHUB_OUTPUT
-          echo "TAG=${TAG}" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
+      - name: Create or update latest pre-release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.release-type.outputs.TAG }}
-          name: ${{ steps.release-type.outputs.TAG }}
-          prerelease: ${{ steps.release-type.outputs.RELEASE_TYPE == 'pre-release' }}
+          tag_name: nightly-latest
+          name: Nightly Latest Pre-release
+          prerelease: true
           body: |
-            Automated ${{ steps.release-type.outputs.RELEASE_TYPE }} build
-            Built from: ${{ github.sha }}
-          generate_release_notes: true
+            Latest pre-release build from commit ${{ github.sha }} on branch ${{ github.ref_name }}.
+            Updated on: ${{ github.event.head_commit.timestamp }}
           files: artifacts/soundio-*.tar.gz
+          draft: false
+          overwrite: true  # Overwrite existing release if it exists (not always reliable, hence the delete step)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
