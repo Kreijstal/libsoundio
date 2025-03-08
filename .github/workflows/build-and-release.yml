@@ -79,10 +79,10 @@ jobs:
       shell: bash
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
       
-    - name: Configure CMake (Windows)
-      if: runner.os == 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
-      shell: msys2 {0}
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+    # - name: Configure CMake (Windows)
+    #   if: runner.os == 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
+    #   shell: msys2 {0}
+    #   run: cmake -B build -DCMAKE_BUILD_TYPE=Release
     
     - name: Build (non-Windows)
       if: runner.os != 'Windows' && steps.build-cache.outputs.cache-hit != 'true'
