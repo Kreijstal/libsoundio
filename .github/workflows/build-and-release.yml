@@ -125,13 +125,9 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: |
-            build-output-ubuntu-latest-native
-            build-output-macos-latest-native
-            build-output-windows-latest-MINGW64
-            build-output-windows-latest-UCRT64
-            build-output-windows-latest-CLANG64
           path: build/
+          pattern: build-output-*
+          merge-multiple: true
 
       - name: Debug restored cache (release job)
         shell: bash
