@@ -18,7 +18,7 @@ jobs:
       sys: ${{ matrix.sys || 'native' }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]  # Added windows-latest
+        os: [ubuntu-latest, macos-latest]
         include:
           - os: windows-latest
             sys: MINGW64
@@ -26,7 +26,7 @@ jobs:
             sys: UCRT64
           - os: windows-latest
             sys: CLANG64
-
+    
     steps:
     - uses: actions/checkout@v4
 
