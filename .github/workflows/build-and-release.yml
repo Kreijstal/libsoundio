@@ -43,7 +43,6 @@ jobs:
         install: >-
           base-devel
           git
-          cmake
         pacboy: >-
           cmake:p
           make:p
